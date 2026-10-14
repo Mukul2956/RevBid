@@ -5,7 +5,8 @@ across many simultaneous auctions, with a full lifecycle (draft â†’ scheduled â†
 console, and the operational tooling you'd expect in production: structured logs, Prometheus metrics, health checks,
 alerts, a provisioned Grafana dashboard, CI and containers.
 
-> **Live demo:** _add your Vercel URL here after deploying (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md))_
+> **Live demo:** https://revbid.vercel.app (API: https://revbid-api.onrender.com, docs at `/docs`). The API runs on a free
+> tier and may take 30-60 seconds to wake on the first visit. Deployment steps: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 >
 > **Demo accounts** (also shown on the login page):
 >
