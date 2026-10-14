@@ -1,0 +1,89 @@
+# Local stack.
+#
+#   docker compose up -d db redis                  data services only (run API/web on the host: `make dev`)
+#   docker compose up --build                      everything: web http://localhost:8080, API :8100
+#   docker compose --profile observability up -d   + Prometheus :9090 and Grafana :3000 (admin / admin)
+name: auction
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: auction
+      POSTGRES_PASSWORD: auction
+      POSTGRES_DB: auction
+    # Host port 5433 (not 5432): developers often already have a Postgres on 5432.
+    ports: ["${DB_HOST_PORT:-5433}:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auction -d auction"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["${REDIS_HOST_PORT:-6380}:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    environment:
+      ENV: local
+      DATABASE_URL: postgresql+asyncpg://auction:auction@db:5432/auction
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: '["http://localhost:8080"]'
+      WS_ALLOWED_ORIGINS: '["http://localhost:8080"]'
+      RUN_MIGRATIONS: "true"
+      RUN_SEED: "true"
+      DEMO_MODE: ${DEMO_MODE:-true}
+      # Tunable from the shell, e.g. for load tests / E2E: RATE_LIMIT_BIDS_PER_10S=100000 docker compose up -d api
+      RATE_LIMIT_LOGIN_PER_MIN: ${RATE_LIMIT_LOGIN_PER_MIN:-10}
+      RATE_LIMIT_REGISTER_PER_MIN: ${RATE_LIMIT_REGISTER_PER_MIN:-5}
+      RATE_LIMIT_BIDS_PER_10S: ${RATE_LIMIT_BIDS_PER_10S:-20}
+      WS_MAX_CONNECTIONS_PER_USER: ${WS_MAX_CONNECTIONS_PER_USER:-10}
+    ports: ["8100:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_WS_URL: ws://localhost:8080/ws
+    ports: ["8080:80"]
+    depends_on: [api]
+
+  prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports: ["9090:9090"]
+    depends_on: [api]
+
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:11.3.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  pgdata:

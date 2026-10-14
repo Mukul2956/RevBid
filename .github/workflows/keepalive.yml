@@ -1,0 +1,20 @@
+name: Keep API warm
+
+# Render's free web services sleep after ~15 minutes without traffic; a cold start takes ~30-60s.
+# This pings /healthz every 10 minutes so reviewers rarely hit one. (GitHub cron is best-effort,
+# so treat it as a mitigation, not a guarantee. Auction correctness never depends on it.)
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    # Set the repository variable API_URL (Settings -> Variables), e.g. https://revbid-api.onrender.com
+    if: ${{ vars.API_URL != '' }}
+    steps:
+      - name: Ping /healthz
+        run: curl --fail --silent --show-error --max-time 90 --retry 3 --retry-delay 10 "${{ vars.API_URL }}/healthz"

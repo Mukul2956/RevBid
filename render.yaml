@@ -1,0 +1,69 @@
+# Render Blueprint: API + Postgres + Redis (Key Value). The frontend lives on Vercel.
+# Deploy: Render dashboard -> New -> Blueprint -> select this repo. See docs/DEPLOYMENT.md.
+#
+# Free-tier notes (verify current limits on render.com/pricing at deploy time):
+#  - free web services sleep after ~15 min idle; .github/workflows/keepalive.yml pings /healthz.
+#  - correctness does not depend on the process being awake (see docs/ARCHITECTURE.md, lifecycle).
+services:
+  - type: web
+    name: revbid-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: revbid-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: revbid-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: METRICS_TOKEN
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAMESITE
+        value: lax # the Vercel /api rewrite makes the cookie same-origin
+      - key: ENABLE_HSTS
+        value: "true"
+      # Set these two by hand after the first Vercel deploy (JSON arrays), e.g.
+      #   ["https://revbid.vercel.app"]
+      - key: CORS_ORIGINS
+        sync: false
+      - key: WS_ALLOWED_ORIGINS
+        sync: false
+      - key: RUN_MIGRATIONS
+        value: "true"
+      - key: RUN_SEED # idempotent; creates demo users/bikes and keeps auctions open
+        value: "true"
+      - key: DEMO_MODE
+        value: "true"
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_BUYER_PASSWORD
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+  - type: keyvalue
+    name: revbid-redis
+    plan: free
+    region: singapore
+    ipAllowList: [] # private network only
+
+databases:
+  - name: revbid-db
+    plan: free
+    region: singapore
+    databaseName: auction
+    user: auction

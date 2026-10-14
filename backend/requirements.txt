@@ -1,0 +1,15 @@
+# Direct runtime dependencies, pinned. Transitive deps are resolved by pip; the full lock is requirements-dev.lock
+alembic==1.20.0
+argon2-cffi==25.1.0
+asyncpg==0.32.0
+email-validator==2.3.0
+fastapi==0.143.0
+prometheus-client==0.26.0
+pydantic==2.14.1
+pydantic-settings==2.15.0
+pyjwt==2.15.1
+redis==8.1.0
+sentry-sdk[fastapi]==2.72.0
+sqlalchemy[asyncio]==2.1.4
+structlog==26.1.0
+uvicorn[standard]==0.54.0

@@ -1,0 +1,79 @@
+# Alert rules: each one is tied to a concrete way this system can fail the people using it.
+groups:
+  - name: auction-platform
+    rules:
+      - alert: SchedulerStalled
+        expr: time() - scheduler_last_tick_timestamp_seconds > 15
+        for: 30s
+        labels: { severity: critical }
+        annotations:
+          summary: Auction lifecycle scheduler has not ticked for {{ $value | humanizeDuration }}
+          description: Auctions may not start or end on time. Bids are still rejected after end_at, but winners will not be announced.
+
+      - alert: AuctionsClosingLate
+        expr: histogram_quantile(0.95, sum(rate(scheduler_lag_seconds_bucket[10m])) by (le)) > 5
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: p95 auction close lag is {{ $value | humanizeDuration }}
+
+      - alert: BidLatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(bid_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: p95 bid latency is {{ $value | humanizeDuration }}
+
+      - alert: BidLockContention
+        expr: histogram_quantile(0.95, sum(rate(bid_lock_wait_seconds_bucket[5m])) by (le)) > 0.25
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: bids wait {{ $value | humanizeDuration }} (p95) for the auction row lock
+          description: A very hot auction is serialising bids. See docs/ARCHITECTURE.md (scaling path).
+
+      - alert: HttpErrorRateHigh
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total[5m])), 1) > 0.05
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: more than 5% of requests are failing with 5xx
+
+      - alert: BidRejectionSpike
+        expr: |
+          sum(rate(bids_total{result!~"accepted|replayed"}[5m]))
+            / clamp_min(sum(rate(bids_total[5m])), 0.01) > 0.9
+          and sum(rate(bids_total[5m])) > 0.5
+        for: 5m
+        labels: { severity: info }
+        annotations:
+          summary: over 90% of bid attempts are rejected (contention on a hot auction, or a client bug)
+
+      - alert: WebSocketSlowConsumersDropped
+        expr: increase(ws_dropped_connections_total{reason="slow_consumer"}[5m]) > 10
+        labels: { severity: warning }
+        annotations:
+          summary: clients are being dropped for not keeping up with the event stream
+
+      - alert: RealtimeBackplaneUnhealthy
+        expr: |
+          increase(redis_listener_reconnects_total[10m]) > 3
+          or increase(realtime_publish_failures_total[5m]) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: Redis pub/sub is flapping or publishes are failing; live updates are degraded (REST still works)
+
+      - alert: RateLimiterFailingOpen
+        expr: increase(rate_limiter_errors_total[5m]) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: the rate limiter cannot reach Redis and is failing open
+
+      - alert: ApiDown
+        expr: up{job="auction-api"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: the API is not answering Prometheus scrapes

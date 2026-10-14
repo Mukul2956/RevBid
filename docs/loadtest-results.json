@@ -1,0 +1,86 @@
+{
+  "when": "2026-10-14T07:58:19.767841+00:00",
+  "hot": {
+    "scenario": "hot auction (all bidders on ONE auction)",
+    "api_instances": 3,
+    "bidders": 150,
+    "spectators_connected": 300,
+    "seconds": 26.0,
+    "requests": 2921,
+    "requests_per_s": 112.3,
+    "accepted_bids": 112,
+    "accepted_per_s": 4.3,
+    "outcomes": {
+      "201 accepted": 112,
+      "409 BID_TOO_LOW": 2807,
+      "409 ALREADY_HIGHEST": 2,
+      "transport_error": 1
+    },
+    "bid_latency_client_side": {
+      "n": 2921,
+      "p50_ms": 898.9,
+      "p95_ms": 3089.4,
+      "p99_ms": 4529.4,
+      "max_ms": 6843.1,
+      "mean_ms": 1181.4
+    },
+    "bid_latency_server_side": {
+      "n": 2921.0,
+      "p50_ms": 10.0,
+      "p95_ms": 1000.0,
+      "p99_ms": 1000.0
+    },
+    "bid_lock_wait_server_side": {
+      "n": 2921.0,
+      "p50_ms": 5.0,
+      "p95_ms": 1000.0,
+      "p99_ms": 1000.0
+    },
+    "ws_bid_events_delivered": 33000,
+    "ws_events_per_s": 1268.5,
+    "ws_fanout_lag": {
+      "n": 33000,
+      "p50_ms": 150.8,
+      "p95_ms": 276.7,
+      "p99_ms": 395.2,
+      "max_ms": 481.9,
+      "mean_ms": 167.5
+    },
+    "server_errors_5xx_or_transport": 1,
+    "correctness_after_storm": {
+      "ok": true,
+      "checks": {
+        "strictly_increasing": true,
+        "min_increment_respected": true,
+        "price_equals_max_bid": true,
+        "bid_count_matches_rows": true,
+        "rows_equal_accepted_responses": true
+      },
+      "bid_rows": 112,
+      "final_price_inr": 147000.0
+    }
+  },
+  "spread": {
+    "scenario": "15 auctions x 8 bidders (spread load)",
+    "seconds": 12.9,
+    "requests": 807,
+    "requests_per_s": 62.5,
+    "accepted_bids": 213,
+    "accepted_per_s": 16.5,
+    "bid_latency_client_side": {
+      "n": 807,
+      "p50_ms": 1232.7,
+      "p95_ms": 5121.3,
+      "p99_ms": 6619.3,
+      "max_ms": 7970.5,
+      "mean_ms": 1722.6
+    },
+    "bid_latency_server_side": {
+      "n": 807.0,
+      "p50_ms": 500.0,
+      "p95_ms": 2500.0,
+      "p99_ms": 2500.0
+    },
+    "all_auctions_consistent": true
+  }
+}
